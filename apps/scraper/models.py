@@ -9,6 +9,7 @@ class Product(models.Model):
     rating = models.DecimalField(max_digits=3, decimal_places=2)
     review_count = models.PositiveIntegerField(default=0)
     images = models.TextField()
+    status = models.CharField(max_length=20, default="pending")
 
     def __init__(self, *args, **kwargs):
         return self.title

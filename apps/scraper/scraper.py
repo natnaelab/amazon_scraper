@@ -1,10 +1,12 @@
 import os
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service as ChromeService
-from seleniumwire import webdriver
+from seleniumwire import webdriver as sw
 from dotenv import load_dotenv
 
 
@@ -16,23 +18,29 @@ class AmazonScraper:
         self.scrapersapi_api_key = os.getenv("SCRAPERSAPI_API_KEY")
         self.proxy_opts = {
             "proxy": {
-                "http": f"http://scraperapi:{self.scrapersapi_api_key}@proxy-server.scraperapi.com:8001",
-                "https": f"http://scraperapi:{self.scrapersapi_api_key}@proxy-server.scraperapi.com:8001",
+                "http": os.getenv('HTTP_PROXY'),
+                "https": os.getenv('HTTPS_PROXY'),
                 "no_proxy": "localhost,127.0.0.1",
             }
         }
-        self.chrome_opts = webdriver.ChromeOptions()
+        self.chrome_opts = Options()
+        self.chrome_opts.add_argument("--no-sandbox")
+        self.chrome_opts.add_argument("start-maximized")
+        self.chrome_opts.add_argument("--disable-extensions")
+        self.chrome_opts.add_argument('--disable-application-cache')
+        self.chrome_opts.add_argument('--disable-gpu')
+        self.chrome_opts.add_argument("--disable-dev-shm-usage")
+        # self.chrome_opts.add_argument("--headless=new")
         self.driver = None
         self.wait = None
 
     def _init_driver(self):
         if not self.driver:
-            self.driver = webdriver.Chrome(
-                service=ChromeService(ChromeDriverManager().install()),
+            self.driver = sw.Chrome(
+                service=Service(ChromeDriverManager().install()),
                 options=self.chrome_opts,
                 # seleniumwire_options=self.proxy_opts,
             )
-            self.wait = WebDriverWait(self.driver, 10)
 
     def _quit_driver(self):
         if self.driver:
@@ -40,12 +48,15 @@ class AmazonScraper:
             self.driver = None
             self.wait = None
 
-    def run(self, query, max_pages=3):
-        self._init_driver()
-        self.driver.get("https://www.amazon.com/")
-        results = self.search_for_products(query)
-        print(results)
-        self._quit_driver()
+    def run(self):
+        try:
+            self._init_driver()
+            self.driver.get("https://www.amazon.com/")
+            results = self.search_for_products("laptop", max_pages=3)
+            print(results)
+        finally:
+            if self.driver:
+                self.driver.quit()
 
     def search_for_products(self, query, max_pages=1):
         try:
@@ -184,8 +195,3 @@ class AmazonScraper:
             return None
         finally:
             self._quit_driver()
-
-
-if __name__ == "__main__":
-    scraper = AmazonScraper()
-    scraper.run("laptop", max_pages=3)
